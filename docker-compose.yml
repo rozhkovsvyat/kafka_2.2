@@ -1,0 +1,178 @@
+services:
+  kafka-0:
+    image: bitnamilegacy/kafka:3.4
+    ports: ["9094:9094"]
+    environment:
+      - KAFKA_ENABLE_KRAFT=yes
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka-0:9093,1@kafka-1:9093,2@kafka-2:9093
+      - KAFKA_KRAFT_CLUSTER_ID=4L69s91yQ8uThB2yS775_w
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-0:9092,EXTERNAL://localhost:9094
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR=3
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=2
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes: ["kafka_0_data:/bitnami/kafka"]
+
+  kafka-1:
+    image: bitnamilegacy/kafka:3.4
+    ports: ["9095:9095"]
+    environment:
+      - KAFKA_ENABLE_KRAFT=yes
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka-0:9093,1@kafka-1:9093,2@kafka-2:9093
+      - KAFKA_KRAFT_CLUSTER_ID=4L69s91yQ8uThB2yS775_w
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9095
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-1:9092,EXTERNAL://localhost:9095
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR=3
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=2
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes: ["kafka_1_data:/bitnami/kafka"]
+
+  kafka-2:
+    image: bitnamilegacy/kafka:3.4
+    ports: ["9096:9096"]
+    environment:
+      - KAFKA_ENABLE_KRAFT=yes
+      - KAFKA_CFG_NODE_ID=2
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka-0:9093,1@kafka-1:9093,2@kafka-2:9093
+      - KAFKA_KRAFT_CLUSTER_ID=4L69s91yQ8uThB2yS775_w
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9096
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-2:9092,EXTERNAL://localhost:9096
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR=3
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=2
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes: ["kafka_2_data:/bitnami/kafka"]
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    depends_on:
+      kafka-0:
+        condition: service_healthy
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+    ports: ["8080:8080"]
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=kraft-cluster
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka-0:9092,kafka-1:9092,kafka-2:9092
+
+  initializer:
+    build: .
+    environment:
+      - MAIN_CLASS=com.work.utils.initializers.SimulationInitializer
+      - BOOTSTRAP_SERVERS=kafka-0:9092,kafka-1:9092,kafka-2:9092
+      - REPLICATION_FACTOR=2
+      - GLOBAL_PARTITIONS_COUNT=1
+      - PARTITIONS_COUNT=3
+      - REQUEST_TIMEOUT_MS=30000
+      - INITIALIZER_CLIENT_ID=simulation-initializer
+      - INITIALIZER_RECONNECT_BACKOFF=1000
+      - INITIALIZER_RETRIES=5
+      - TOPIC_PROHIBITED_WORD=prohibited_word
+      - TOPIC_USER=user
+    depends_on:
+      kafka-0:
+        condition: service_healthy
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+
+  topology:
+    build: .
+    environment:
+      - MAIN_CLASS=com.work.utils.topologies.SimulationTopology
+      - BOOTSTRAP_SERVERS=kafka-0:9092,kafka-1:9092,kafka-2:9092
+      - REPLICATION_FACTOR=2
+      - REQUEST_TIMEOUT_MS=30000
+      - TOPOLOGY_APPLICATION_ID=simulation-topology
+      - TOPOLOGY_STATESTORE_CACHE_MAX_KB=10240
+      - TOPOLOGY_PROHIBITED_MASK=***
+      - TOPOLOGY_UNKNOWN_LOGIN_MASK=Unknown
+      - TOPIC_BAN=ban
+      - TOPIC_PROHIBITED_WORD=prohibited_word
+      - TOPIC_USER=user
+      - TOPIC_RAW_MESSAGE=raw_message
+      - TOPIC_MESSAGE=message
+      - STORE_PROHIBITED_WORD=prohibited-word-store
+      - STORE_USER=user-store
+      - STORE_BAN=ban-store
+    depends_on:
+      initializer:
+        condition: service_completed_successfully
+
+  producer:
+    build: .
+    environment:
+      - MAIN_CLASS=com.work.utils.producers.SimulationProducer
+      - BOOTSTRAP_SERVERS=kafka-0:9092,kafka-1:9092,kafka-2:9092
+      - REQUEST_TIMEOUT_MS=30000
+      - GRACEFUL_SHUTDOWN_WAIT_MS=5000
+      - PRODUCER_SIMULATION_CYCLE_MAX_WAIT_MS=4000
+      - PRODUCER_DELIVERY_TIMEOUT_MS=120000
+      - PRODUCER_LINGER_MS=5
+      - PRODUCER_BATCH_SIZE_BYTES=16384
+      - PRODUCER_RETRY_BACKOFF_MS=100
+      - TOPIC_PROHIBITED_WORD=prohibited_word
+      - TOPIC_USER=user
+      - TOPIC_BAN=ban
+      - TOPIC_RAW_MESSAGE=raw_message
+    depends_on:
+      topology:
+        condition: service_started
+
+  monitor:
+    build: .
+    environment:
+      - MAIN_CLASS=com.work.utils.consumers.SimulationMonitor
+      - BOOTSTRAP_SERVERS=kafka-0:9092,kafka-1:9092,kafka-2:9092
+      - GRACEFUL_SHUTDOWN_WAIT_MS=5000
+      - TOPIC_BAN=ban
+      - TOPIC_USER=user
+      - TOPIC_RAW_MESSAGE=raw_message
+      - TOPIC_MESSAGE=message
+      - MONITOR_POLL_MS=100
+      - MONITOR_AUTO_COMMIT_INTERVAL_MS=1000
+      - MONITOR_FETCH_MIN_BYTES=1
+      - MONITOR_FETCH_MAX_WAIT_MS=500
+      - MONITOR_SESSION_TIMEOUT_MS=45000
+      - MONITOR_HEARTBEAT_INTERVAL_MS=15000
+      - MONITOR_REQUEST_TIMEOUT_MS=60000
+      - MONITOR_GROUP_ID=simulation-monitor
+    depends_on:
+      topology:
+        condition: service_started
+
+volumes:
+  kafka_0_data:
+  kafka_1_data:
+  kafka_2_data:
